@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>RPG Literary Quest – Dreams & Voices</title>
+<style>
+body{font-family:Arial;background:#f3f3f3;text-align:center;}
+h1{margin-top:20px;}
+#gameArea{max-width:900px;margin:auto;}
+#characterSelect,#map,#eventBox,#tokens,#finalBox{margin-top:25px;}
+button{padding:10px 18px;margin:5px;font-size:16px;border:none;border-radius:6px;background:#2c6e91;color:white;cursor:pointer;}
+button:hover{background:#17445b;}
+#map{position:relative;width:900px;height:520px;background:#e6e6e6;border:3px solid #333;border-radius:12px;margin:auto;}
+.place{position:absolute;padding:12px;background:#2c6e91;color:white;border-radius:8px;cursor:pointer;width:160px;}
+.place:hover{background:#17445b;}
+#avatar{position:absolute;width:40px;height:40px;background:#f0ad4e;border-radius:50%;transition:all 0.7s ease;}
+.token{display:inline-block;padding:5px 10px;margin:5px;background:#f0ad4e;color:white;border-radius:5px;}
+.badge{display:inline-block;width:50px;height:50px;background:#5cb85c;color:white;border-radius:50%;line-height:50px;margin:5px;font-weight:bold;}
+textarea{width:80%;height:100px;margin-top:10px;padding:8px;font-size:14px;border-radius:6px;border:1px solid #ccc;}
+.tooltip{position:relative;display:inline-block;}
+.tooltip .hint{visibility:hidden;width:220px;background:#333;color:#fff;text-align:left;border-radius:6px;padding:5px;position:absolute;z-index:1;bottom:125%;left:50%;margin-left:-110px;opacity:0;transition:opacity 0.3s;}
+.tooltip:hover .hint{visibility:visible;opacity:1;}
+#pointsDisplay{margin-top:10px;font-size:18px;font-weight:bold;}
+</style>
+</head>
+<body>
+
+<h1>RPG Literary Quest – Dreams & Voices</h1>
+<div id="gameArea">
+
+<div id="characterSelect">
+<h2>Select Your Character</h2>
+<button onclick="chooseCharacter('Walter')">Walter</button>
+<button onclick="chooseCharacter('Beneatha')">Beneatha</button>
+<button onclick="chooseCharacter('Mama')">Mama</button>
+<button onclick="chooseCharacter('Ruth')">Ruth</button>
+<button onclick="chooseCharacter('Janie')">Janie</button>
+</div>
+
+<div id="map" style="display:none;">
+<div id="avatar"></div>
+<div class="tooltip place" style="top:60px;left:90px;" onclick="enterLocation('eatonville',90,60)">Eatonville<span class="hint">Community shaping voice; connect both texts.</span></div>
+<div class="tooltip place" style="top:60px;right:90px;" onclick="enterLocation('chicago',650,60)">Southside Chicago<span class="hint">Dreams vs barriers; dual-text analysis.</span></div>
+<div class="tooltip place" style="top:210px;left:370px;" onclick="enterLocation('apartment',370,210)">Younger Apartment<span class="hint">Spaces shaping identity.</span></div>
+<div class="tooltip place" style="bottom:80px;left:110px;" onclick="enterLocation('everglades',110,420)">Everglades<span class="hint">Freedom, risk, transformation.</span></div>
+<div class="tooltip place" style="bottom:80px;right:110px;" id="horizonBtn" onclick="enterLocation('horizon',650,420)">Horizon<span class="hint">Self-realization; unlock after 3 tokens.</span></div>
+</div>
+
+<div id="eventBox"></div>
+<div id="pointsDisplay">Points: 0</div>
+<div id="tokens"><h3>Evidence Tokens:</h3></div>
+<div id="badges"><h3>Badges:</h3></div>
+<div id="finalBox" style="display:none;">
+<button onclick="copyAllAnswers()">Copy All Answers</button>
+<p>Paste your answers into your teacher’s Google Form or Doc.</p>
+</div>
+
+</div>
+
+<script>
+let character="";
+let collectedTokens=[];
+let avatarX=430, avatarY=240;
+let answers={};
+let points=0;
+let badgesEarned=[];
+
+function chooseCharacter(name){
+  character=name;
+  document.getElementById("characterSelect").style.display="none";
+  document.getElementById("map").style.display="block";
+  const av=document.getElementById("avatar");
+  av.style.left=avatarX+"px";
+  av.style.top=avatarY+"px";
+  document.getElementById("eventBox").innerHTML="<h2>Welcome, "+character+"!</h2><p>Click a location to start your quest.</p>";
+  document.getElementById("horizonBtn").style.background="#999";
+}
+
+const locations={
+  eatonville:{title:"Eatonville",text:"Community and social expectations shape voice.",token:"Eatonville",mc:{q:"Which action shows resisting community norms?",choices:["Follows norms","Resists norms","Ignores community","No action"],answer:1}},
+  chicago:{title:"Southside Chicago",text:"Dreams and structural barriers.",token:"Chicago",mc:{q:"Who pursues dreams despite barriers?",choices:["Gives up","Adapts","Pursues","Avoids"],answer:2}},
+  apartment:{title:"Younger Apartment",text:"Confinement and family tension.",token:"Apartment",mc:{q:"Which reflects reclaiming personal space?",choices:["Accepts limits","Rearranges space","Ignores constraints","Leaves immediately"],answer:1}},
+  everglades:{title:"Everglades",text:"Freedom and transformation.",token:"Everglades",mc:{q:"Moment of genuine freedom?",choices:["Routine work","Escape & risk","Following orders","Isolation"],answer:1}},
+  horizon:{title:"Horizon",text:"Self-realization and pursuit of voice.",token:"Horizon"}
+};
+
+function moveAvatar(targetX,targetY){
+  const av=document.getElementById("avatar");
+  function step(){
+    let dx=targetX-avatarX;
+    let dy=targetY-avatarY;
+    if(Math.abs(dx)<2 && Math.abs(dy)<2){
+      avatarX=targetX; avatarY=targetY; av.style.left=avatarX+"px"; av.style.top=avatarY+"px"; return;
+    }
+    avatarX+=dx*0.1; avatarY+=dy*0.1;
+    av.style.left=avatarX+"px"; av.style.top=avatarY+"px";
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function enterLocation(loc,x,y){
+  if(loc==="horizon" && collectedTokens.length<3){
+    alert("Collect at least 3 Evidence Tokens to unlock the Horizon."); return;
+  }
+  moveAvatar(x,y);
+  const l=locations[loc];
+  let html=`<h2>${l.title}</h2><p>${l.text}</p>`;
+  if(l.mc){
+    html+=`<p><b>Mini-Question:</b> ${l.mc.q}</p>`;
+    l.mc.choices.forEach((c,i)=>{ html+=`<button onclick="checkMC('${loc}',${i})">${c}</button>`; });
+  }
+  html+=`<p><b>Open-Ended Challenge:</b></p><textarea id="answer" placeholder="Type your analysis here..."></textarea><br>
+  <button onclick="collectToken('${loc}')">Submit & Collect Token</button>
+  <button onclick="returnToMap()">Return to Map</button>`;
+  document.getElementById("eventBox").innerHTML=html;
+}
+
+function checkMC(loc,index){
+  if(index===locations[loc].mc.answer){
+    points+=10;
+    updatePoints();
+    alert("Correct! +10 points.");
+    if(!badgesEarned.includes("MC Master") && points>=50){
+      badgesEarned.push("MC Master");
+      const badgeDiv=document.getElementById("badges");
+      badgeDiv.innerHTML+="<span class='badge'>MC Master</span>";
+    }
+  } else alert("Not quite. Think about dual-text connections.");
+}
+
+function updatePoints(){document.getElementById("pointsDisplay").innerText="Points: "+points;}
+
+function collectToken(loc){
+  const answerText=document.getElementById("answer").value.trim();
+  if(answerText===""){alert("Please type your answer before collecting the token.");return;}
+  answers[loc]=answerText;
+  if(!collectedTokens.includes(loc)){
+    collectedTokens.push(loc);
+    animateTokenFly(loc);
+  }
+  if(collectedTokens.length>=3) document.getElementById("horizonBtn").style.background="#2c6e91";
+  alert("Token collected! Copy your answer for submission.\n\nYour answer:\n"+answerText);
+  returnToMap();
+}
+
+function animateTokenFly(tokenName){
+  const tokenIcon=document.createElement("div");
+  tokenIcon.className="token";
+  tokenIcon.innerText=tokenName;
+  tokenIcon.style.position="absolute"; tokenIcon.style.left="430px"; tokenIcon.style.top="240px";
+  document.body.appendChild(tokenIcon);
+  let x=430, y=240, targetX=10+collectedTokens.length*70, targetY=10;
+  function step(){
+    let dx=targetX-x, dy=targetY-y;
+    if(Math.abs(dx)<2 && Math.abs(dy)<2){ document.getElementById("tokens").appendChild(tokenIcon); tokenIcon.style.position=""; return;}
+    x+=dx*0.1; y+=dy*0.1;
+    tokenIcon.style.left=x+"px"; tokenIcon.style.top=y+"px";
+    requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function returnToMap(){
+  document.getElementById("eventBox").innerHTML="<h2>Explore the Map</h2><p>Select a location to continue your journey.</p>";
+  if(collectedTokens.length>0) document.getElementById("finalBox").style.display="block";
+}
+
+function copyAllAnswers(){
+  let text="";
+  for(const loc in answers){
+    text+=locations[loc].title+":\n"+answers[loc]+"\n\n";
+  }
+  navigator.clipboard.writeText(text).then(()=>alert("All answers copied! Paste them into your submission."));
+}
+
+</script>
+</body>
+</html>
